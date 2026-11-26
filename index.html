@@ -282,6 +282,17 @@
     .auth-panel h3 { margin: 0 0 16px; color: var(--navy); }
     .auth-form { display: grid; gap: 12px; }
     .auth-form .primary-btn { margin-top: 2px; }
+    .auth-link-row { margin-top: 10px; text-align: center; }
+    .text-link { border: 0; padding: 4px; background: transparent; color: var(--teal-dark); font: inherit; font-weight: 750; cursor: pointer; }
+    .text-link:hover { text-decoration: underline; }
+    .auth-message { min-height: 20px; margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+    .auth-message.error { color: var(--danger); }
+    .auth-message.success { color: var(--success); }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center; padding: 20px; background: rgba(23,50,77,.48); }
+    .modal-backdrop.open { display: flex; }
+    .password-modal { width: min(420px, 100%); padding: 24px; }
+    .password-modal h3 { margin: 0 0 6px; color: var(--navy); }
+    .password-modal p { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
   </style>
 </head>
 <body>
@@ -331,6 +342,13 @@
           <input type="password" id="doctorPassword" placeholder="Password" required />
           <button class="primary-btn" type="submit">Sign in</button>
         </form>
+        <div class="auth-link-row" id="doctorForgotRow"><button type="button" class="text-link" data-forgot="doctor">Forgot password?</button></div>
+        <form id="doctorReset" class="auth-form" style="display:none">
+          <input type="email" id="doctorResetEmail" placeholder="Email" required />
+          <button class="primary-btn" type="submit">Send Reset Link</button>
+          <button type="button" class="text-link" data-back="doctor">Back to login</button>
+          <div id="doctorResetMessage" class="auth-message"></div>
+        </form>
       </div>
       <div id="doctorProtected">
         <div class="page-header">
@@ -357,6 +375,13 @@
           <input type="email" id="adminEmail" placeholder="Email" required />
           <input type="password" id="adminPassword" placeholder="Password" required />
           <button class="primary-btn" type="submit">Sign in</button>
+        </form>
+        <div class="auth-link-row" id="adminForgotRow"><button type="button" class="text-link" data-forgot="admin">Forgot password?</button></div>
+        <form id="adminReset" class="auth-form" style="display:none">
+          <input type="email" id="adminResetEmail" placeholder="Email" required />
+          <button class="primary-btn" type="submit">Send Reset Link</button>
+          <button type="button" class="text-link" data-back="admin">Back to login</button>
+          <div id="adminResetMessage" class="auth-message"></div>
         </form>
       </div>
       <div id="adminProtected">
@@ -387,6 +412,18 @@
     </section>
   </main>
   <div class="toast" id="toast"></div>
+
+  <div class="modal-backdrop" id="passwordRecoveryModal" role="dialog" aria-modal="true" aria-labelledby="passwordRecoveryTitle">
+    <div class="card password-modal">
+      <h3 id="passwordRecoveryTitle">Set New Password</h3>
+      <p>Enter a new password with at least 6 characters.</p>
+      <form id="newPasswordForm" class="auth-form">
+        <input type="password" id="newPassword" minlength="6" autocomplete="new-password" placeholder="New password" required />
+        <button class="primary-btn" type="submit">Save Password</button>
+        <div id="newPasswordMessage" class="auth-message"></div>
+      </form>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -604,7 +641,12 @@
     function setupLogin(formId, emailId, passwordId) {
       $(formId).addEventListener('submit', async (event) => {
         event.preventDefault();
+        const button = $(formId).querySelector('button[type="submit"]');
+        button.disabled = true;
+        button.textContent = 'Signing in…';
         const { error } = await supabaseClient.auth.signInWithPassword({ email: $(emailId).value.trim(), password: $(passwordId).value.trim() });
+        button.disabled = false;
+        button.textContent = 'Sign in';
         toast(error ? error.message : 'Signed in successfully');
       });
     }
@@ -684,7 +726,102 @@
 
     setupLogin('doctorLogin', 'doctorEmail', 'doctorPassword');
     setupLogin('adminLogin', 'adminEmail', 'adminPassword');
-    supabaseClient.auth.onAuthStateChange(syncAuth);
+
+    function showResetView(role) {
+      $(role + 'Login').style.display = 'none';
+      $(role + 'ForgotRow').style.display = 'none';
+      $(role + 'Reset').style.display = 'grid';
+      $(role + 'ResetEmail').focus();
+    }
+
+    function showLoginView(role) {
+      $(role + 'Reset').style.display = 'none';
+      $(role + 'Login').style.display = 'grid';
+      $(role + 'ForgotRow').style.display = 'block';
+      $(role + 'ResetMessage').textContent = '';
+      $(role + 'ResetMessage').className = 'auth-message';
+    }
+
+    document.querySelectorAll('[data-forgot]').forEach((button) => {
+      button.addEventListener('click', () => showResetView(button.dataset.forgot));
+    });
+    document.querySelectorAll('[data-back]').forEach((button) => {
+      button.addEventListener('click', () => showLoginView(button.dataset.back));
+    });
+
+    async function setupResetRequest(role) {
+      const form = $(role + 'Reset');
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"]');
+        const message = $(role + 'ResetMessage');
+        const email = $(role + 'ResetEmail').value.trim();
+        button.disabled = true;
+        button.textContent = 'Sending…';
+        message.textContent = '';
+        message.className = 'auth-message';
+
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+          redirectTo: window.location.origin
+        });
+
+        button.disabled = false;
+        button.textContent = 'Send Reset Link';
+        if (error) {
+          message.textContent = error.message;
+          message.className = 'auth-message error';
+        } else {
+          message.textContent = 'Check your email for the password reset link.';
+          message.className = 'auth-message success';
+        }
+      });
+    }
+
+    setupResetRequest('doctor');
+    setupResetRequest('admin');
+
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        $('passwordRecoveryModal').classList.add('open');
+        $('newPassword').value = '';
+        $('newPasswordMessage').textContent = '';
+        $('newPasswordMessage').className = 'auth-message';
+        return;
+      }
+      await syncAuth();
+    });
+
+    $('newPasswordForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const password = $('newPassword').value;
+      const button = $('newPasswordForm').querySelector('button[type="submit"]');
+      const message = $('newPasswordMessage');
+
+      if (password.length < 6) {
+        message.textContent = 'Password must be at least 6 characters.';
+        message.className = 'auth-message error';
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      message.textContent = '';
+      message.className = 'auth-message';
+
+      const { error } = await supabaseClient.auth.updateUser({ password });
+      button.disabled = false;
+      button.textContent = 'Save Password';
+
+      if (error) {
+        message.textContent = error.message;
+        message.className = 'auth-message error';
+        return;
+      }
+
+      $('passwordRecoveryModal').classList.remove('open');
+      toast('Password updated successfully');
+      await syncAuth();
+    });
 
     async function initialize() {
       $('bookingDate').value = TODAY;
