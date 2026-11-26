@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clinic Scheduler</title>
+  <style>
+    :root {
+      --bg: #f5f7f5;
+      --surface: #ffffff;
+      --navy: #17324d;
+      --teal: #167d79;
+      --teal-dark: #106663;
+      --text: #1f2933;
+      --muted: #667085;
+      --border: #dde5e2;
+      --danger: #c94a4a;
+      --warning: #b7791f;
+      --success: #287d55;
+      --shadow: 0 8px 24px rgba(23, 50, 77, 0.08);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .topbar {
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 42px;
+      background: var(--navy);
+      color: white;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 10px;
+      display: grid; place-items: center;
+      background: #ebf7f5; color: var(--teal);
+      font-size: 23px; font-weight: 800;
+    }
+    .brand-name { font-size: 20px; font-weight: 750; letter-spacing: .2px; }
+
+    .nav { display: flex; height: 100%; align-items: stretch; }
+    .nav button {
+      border: 0; border-bottom: 3px solid transparent;
+      padding: 0 20px; background: transparent; color: #cbd7df;
+      font: inherit; font-weight: 650; cursor: pointer;
+    }
+    .nav button.active { color: white; border-bottom-color: #65bbb4; }
+
+    main { max-width: 1180px; margin: 32px auto 56px; padding: 0 24px; }
+    .view { display: none; }
+    .view.active { display: block; }
+
+    .page-header {
+      display: flex; align-items: flex-end; justify-content: space-between;
+      margin-bottom: 22px;
+    }
+    .page-header h1 { margin: 0 0 5px; font-size: 28px; color: var(--navy); }
+    .page-header p { margin: 0; color: var(--muted); }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; box-shadow: var(--shadow);
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .booking-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+      gap: 22px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .booking-panel {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      padding: 26px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .form-grid > div {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 750; color: #44515f; }
+    input, select {
+      width: 100%; height: 44px; border: 1px solid #ccd6d3; border-radius: 8px;
+      padding: 0 12px; background: white; color: var(--text); font: inherit;
+      outline: none;
+    }
+    input[type="date"] {
+      -webkit-appearance: none;
+      appearance: none;
+      display: block;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      text-align: left;
+      box-sizing: border-box;
+    }
+    input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(22,125,121,.10); }
+
+    .section-title { margin: 24px 0 12px; font-size: 15px; color: var(--navy); }
+    .slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+    .slot {
+      height: 42px; border: 1px solid #bdd0cc; border-radius: 8px;
+      background: #f8fbfa; color: var(--teal-dark); font-weight: 700; cursor: pointer;
+    }
+    .slot:hover { background: #edf7f5; }
+    .slot.selected { background: var(--teal); border-color: var(--teal); color: white; }
+    .slot.unavailable { background: #f1f3f2; color: #9aa4a0; border-color: #e2e6e4; cursor: not-allowed; text-decoration: line-through; }
+
+    .summary { padding: 24px; align-self: start; }
+    .summary h3 { margin: 0 0 18px; color: var(--navy); }
+    .summary-row { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid #edf1ef; font-size: 14px; }
+    .summary-row span:first-child { color: var(--muted); }
+    .summary-row strong { text-align: right; }
+
+    .primary-btn {
+      width: 100%; height: 46px; margin-top: 18px; border: 0; border-radius: 8px;
+      background: var(--teal); color: white; font: inherit; font-weight: 750; cursor: pointer;
+    }
+    .primary-btn:hover { background: var(--teal-dark); }
+    .primary-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .toolbar { display: flex; align-items: center; gap: 12px; }
+    .toolbar select { width: 220px; }
+
+    .schedule-card {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .schedule-head, .appointment-row {
+      display: grid; grid-template-columns: 110px 1.5fr 1.1fr 110px 190px;
+      align-items: center; column-gap: 16px;
+    }
+    .schedule-head { height: 48px; padding: 0 20px; background: #edf3f1; color: #5d6b76; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
+    .appointment-row { min-height: 76px; padding: 12px 20px; border-top: 1px solid #edf1ef; }
+    .appointment-row:first-child { border-top: 0; }
+    .time { color: var(--navy); font-weight: 800; }
+    .patient-name { font-weight: 750; }
+    .phone { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+    .status {
+      justify-self: start; border-radius: 999px; padding: 5px 9px;
+      font-size: 12px; font-weight: 800;
+    }
+    .status.Scheduled { background: #e7f1ff; color: #32648f; }
+    .status.Completed { background: #e5f4ec; color: var(--success); }
+    .status.No-Show { background: #fbeaea; color: var(--danger); }
+
+    .actions { display: flex; justify-content: flex-end; gap: 7px; }
+    .action-btn {
+      height: 34px; border: 1px solid var(--border); border-radius: 7px;
+      padding: 0 10px; background: white; color: #4d5b66; font-weight: 750; cursor: pointer;
+    }
+    .action-btn.complete { color: var(--success); border-color: #b9d9c8; }
+    .action-btn.no-show { color: var(--warning); border-color: #dfc99f; }
+    .action-btn.cancel { color: var(--danger); border-color: #dfbcbc; }
+
+    .admin-layout { display: grid; grid-template-columns: 1fr 310px; gap: 22px; align-items: start; }
+    .admin-table { overflow: hidden; }
+    .admin-head, .admin-row {
+      display: grid; grid-template-columns: 90px 1.25fr 1fr 100px 70px;
+      align-items: center; column-gap: 12px;
+    }
+    .admin-head { height: 48px; padding: 0 18px; background: #edf3f1; font-size: 12px; color: #5d6b76; font-weight: 800; text-transform: uppercase; }
+    .admin-row { min-height: 68px; padding: 10px 18px; border-top: 1px solid #edf1ef; }
+
+    .walk-in { padding: 22px; }
+    .walk-in h3 { margin: 0 0 16px; color: var(--navy); }
+    .walk-in .field { margin-bottom: 13px; }
+    .empty { padding: 40px 20px; text-align: center; color: var(--muted); }
+
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; z-index: 20;
+      padding: 13px 18px; border-radius: 9px; background: var(--navy); color: white;
+      box-shadow: 0 10px 28px rgba(23,50,77,.25); opacity: 0;
+      transform: translateY(12px); transition: .22s ease; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .overflow-x-auto {
+      width: 100%;
+      overflow-x: auto;
+      overscroll-behavior-inline: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+    .schedule-card, .admin-table { min-width: 0; }
+
+    @media (max-width: 850px) {
+      .topbar {
+        height: auto;
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+      }
+      .brand-name { font-size: 18px; }
+      .nav { width: 100%; height: 48px; }
+      .nav button {
+        flex: 1;
+        min-width: 0;
+        min-height: 48px;
+        padding: 0 6px;
+        font-size: 12px;
+      }
+      main { margin-top: 18px; padding: 0 12px 40px; }
+      .page-header { align-items: stretch; flex-direction: column; gap: 14px; }
+      .page-header h1 { font-size: 24px; }
+      .toolbar { width: 100%; flex-direction: column; align-items: stretch; }
+      .toolbar select { width: 100%; }
+      .booking-layout, .admin-layout { grid-template-columns: minmax(0, 1fr); }
+      .booking-panel, .summary, .walk-in {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        padding: 16px;
+      }
+      .form-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 14px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      input[type="date"] {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+      }
+      .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .slot { min-height: 52px; }
+      .primary-btn { min-height: 52px; }
+      .summary-row { font-size: 13px; }
+      .schedule-content { min-width: 720px; }
+      .admin-content { min-width: 690px; }
+      .schedule-head { display: grid; }
+      .appointment-row { min-height: 72px; }
+      .action-btn { min-height: 44px; padding: 0 12px; }
+      .admin-head { display: grid; }
+      .toast { left: 12px; right: 12px; bottom: 12px; text-align: center; }
+    }
+
+    @media (max-width: 480px) {
+      .brand-mark { width: 34px; height: 34px; }
+      .nav button { line-height: 1.15; }
+      .slots { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .schedule-content { min-width: 620px; }
+      .admin-content { min-width: 620px; }
+    }
+
+    .auth-panel { max-width: 420px; margin: 36px auto; padding: 22px; }
+    .auth-panel h3 { margin: 0 0 16px; color: var(--navy); }
+    .auth-form { display: grid; gap: 12px; }
+    .auth-form .primary-btn { margin-top: 2px; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">+</div>
+      <div class="brand-name">Clinic Scheduler</div>
+    </div>
+    <nav class="nav">
+      <button class="active" data-view="booking">Patient Booking</button>
+      <button data-view="doctor">Doctor View</button>
+      <button data-view="admin">Admin View</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="booking" class="view active">
+      <div class="page-header">
+        <div><h1>Book an appointment</h1><p>Choose a provider, date, and available time.</p></div>
+      </div>
+      <div class="booking-layout">
+        <div class="card booking-panel">
+          <div class="form-grid">
+            <div><label for="bookingDoctor">Doctor</label><select id="bookingDoctor"></select></div>
+            <div><label for="bookingDate">Date</label><input type="date" id="bookingDate" /></div>
+            <div><label for="patientName">Patient name</label><input id="patientName" placeholder="Enter full name" /></div>
+            <div><label for="patientPhone">Phone number</label><input id="patientPhone" placeholder="(555) 000-0000" /></div>
+          </div>
+          <h3 class="section-title">Available times</h3>
+          <div class="slots" id="slotGrid"></div>
+        </div>
+        <aside class="card summary">
+          <h3>Appointment summary</h3>
+          <div class="summary-row"><span>Doctor</span><strong id="summaryDoctor">—</strong></div>
+          <div class="summary-row"><span>Date</span><strong id="summaryDate">—</strong></div>
+          <div class="summary-row"><span>Time</span><strong id="summaryTime">—</strong></div>
+          <button class="primary-btn" id="bookBtn" disabled>Book appointment</button>
+        </aside>
+      </div>
+    </section>
+
+    <section id="doctor" class="view">
+      <div class="auth-panel card" id="doctorAuth">
+        <h3>Doctor sign in</h3>
+        <form id="doctorLogin" class="auth-form">
+          <input type="email" id="doctorEmail" placeholder="Email" required />
+          <input type="password" id="doctorPassword" placeholder="Password" required />
+          <button class="primary-btn" type="submit">Sign in</button>
+        </form>
+      </div>
+      <div id="doctorProtected">
+        <div class="page-header">
+          <div><h1>Doctor schedule</h1><p id="doctorSubtitle">View and update appointments.</p></div>
+          <div class="toolbar">
+            <label style="margin:0">Doctor</label><select id="doctorSelect"></select>
+            <label style="margin:0">Date</label><input type="date" id="doctorDate" />
+            <button class="action-btn" id="doctorSignOut">Sign Out</button>
+          </div>
+        </div>
+        <div class="card schedule-card overflow-x-auto">
+          <div class="schedule-content">
+            <div class="schedule-head"><span>Time</span><span>Patient</span><span>Phone</span><span>Status</span><span></span></div>
+            <div id="doctorSchedule"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="admin" class="view">
+      <div class="auth-panel card" id="adminAuth">
+        <h3>Admin sign in</h3>
+        <form id="adminLogin" class="auth-form">
+          <input type="email" id="adminEmail" placeholder="Email" required />
+          <input type="password" id="adminPassword" placeholder="Password" required />
+          <button class="primary-btn" type="submit">Sign in</button>
+        </form>
+      </div>
+      <div id="adminProtected">
+        <div class="page-header">
+          <div><h1>Appointments</h1><p>Master schedule across all doctors.</p></div>
+          <div class="toolbar">
+            <label style="margin:0">Date</label><input type="date" id="adminDate" />
+            <button class="action-btn" id="adminSignOut">Sign Out</button>
+          </div>
+        </div>
+      <div class="admin-layout">
+        <div class="card admin-table overflow-x-auto">
+          <div class="admin-content">
+            <div class="admin-head"><span>Time</span><span>Patient</span><span>Doctor</span><span>Status</span><span></span></div>
+            <div id="adminSchedule"></div>
+          </div>
+        </div>
+        <aside class="card walk-in">
+          <h3>Add walk-in</h3>
+          <div class="field"><label for="walkName">Patient name</label><input id="walkName" placeholder="Full name" /></div>
+          <div class="field"><label for="walkPhone">Phone number</label><input id="walkPhone" placeholder="(555) 000-0000" /></div>
+          <div class="field"><label for="walkDoctor">Doctor</label><select id="walkDoctor"></select></div>
+          <div class="field"><label for="walkTime">Time</label><select id="walkTime"></select></div>
+          <button class="primary-btn" id="walkInBtn">Add walk-in</button>
+        </aside>
+      </div>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const { createClient } = window.supabase;
+    const supabaseClient = createClient(
+      'https://qboiklmdbbgtrviyfzuv.supabase.co',
+      'sb_publishable_cMamOpHKjai_0tQJUxPZLg_P6rt_tVv'
+    );
+
+    const $ = (id) => document.getElementById(id);
+    const TODAY = new Date().toLocaleDateString('en-CA');
+    let doctors = [];
+    let selectedSlot = null;
+
+    function escapeHtml(value) {
+      const node = document.createElement('div');
+      node.textContent = value ?? '';
+      return node.innerHTML;
+    }
+
+    function toast(message) {
+      const node = $('toast');
+      node.textContent = message;
+      node.classList.add('show');
+      clearTimeout(node.timer);
+      node.timer = setTimeout(() => node.classList.remove('show'), 2600);
+    }
+
+    function formatTime(time) {
+      if (!time) return '—';
+      const [h, m] = time.slice(0, 5).split(':').map(Number);
+      return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+    }
+
+    function formatDate(date) {
+      if (!date) return '—';
+      const [y, m, d] = date.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function getSlots() {
+      const slots = [];
+      for (let h = 9; h < 17; h++) {
+        for (let m = 0; m < 60; m += 15) slots.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+      }
+      return slots;
+    }
+
+    async function loadDoctors() {
+      const { data, error } = await supabaseClient
+        .from('doctors')
+        .select('*')
+        .order('name', { ascending: true });
+      if (error) {
+        toast(error.message);
+        return;
+      }
+      doctors = data || [];
+      const options = doctors.map((doctor) => `<option value="${doctor.id}">${escapeHtml(doctor.name)}</option>`).join('');
+      $('bookingDoctor').innerHTML = options;
+      $('doctorSelect').innerHTML = options;
+      $('walkDoctor').innerHTML = options;
+    }
+
+    function doctorName(id) {
+      return doctors.find((doctor) => String(doctor.id) === String(id))?.name || 'Unknown doctor';
+    }
+
+    async function renderSlots() {
+      const doctorId = $('bookingDoctor').value;
+      const date = $('bookingDate').value;
+      selectedSlot = null;
+
+      if (!doctorId || !date) {
+        $('slotGrid').innerHTML = '<div class="empty">Select a doctor and date.</div>';
+        updateSummary();
+        return;
+      }
+
+      $('slotGrid').innerHTML = '<div class="empty">Loading available times…</div>';
+
+      const p_doctor_id = String(doctorId).trim();
+      const p_date = String(date).trim();
+      if (!p_doctor_id || !p_date) {
+        $('slotGrid').innerHTML = '<div class="empty">Select a doctor and date.</div>';
+        updateSummary();
+        return;
+      }
+
+      const { data, error } = await supabaseClient.rpc('get_booked_slots', { p_doctor_id, p_date });
+      if (error) {
+        $('slotGrid').innerHTML = '<div class="empty">Could not load availability.</div>';
+        toast(error.message);
+        return;
+      }
+
+      const booked = new Set((data || []).map((row) => {
+        if (typeof row === 'string') return row.slice(0, 5);
+        const time = row.time_slot || row.time;
+        return String(time || '').slice(0, 5);
+      }));
+
+      $('slotGrid').innerHTML = getSlots().map((time) =>
+        `<button type="button" class="slot ${booked.has(time) ? 'unavailable' : ''}" data-time="${time}" ${booked.has(time) ? 'disabled' : ''}>${formatTime(time)}</button>`
+      ).join('');
+      updateSummary();
+    }
+
+    function updateSummary() {
+      $('summaryDoctor').textContent = $('bookingDoctor').selectedOptions[0]?.text || '—';
+      $('summaryDate').textContent = formatDate($('bookingDate').value);
+      $('summaryTime').textContent = selectedSlot ? formatTime(selectedSlot) : '—';
+      $('bookBtn').disabled = !(selectedSlot && $('patientName').value.trim() && $('patientPhone').value.trim());
+    }
+
+    async function fetchAppointments(date) {
+      const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+      if (sessionError || !session) {
+        toast(sessionError?.message || 'Please sign in to view appointments');
+        return [];
+      }
+
+      const { data, error } = await supabaseClient
+        .from('appointments')
+        .select('*, doctors(*)')
+        .eq('appt_date', date)
+        .neq('status', 'cancelled')
+        .order('time_slot');
+      if (error) {
+        toast(error.message);
+        return [];
+      }
+      return data || [];
+    }
+
+    async function renderDoctorSchedule() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return;
+
+      const doctorId = $('doctorSelect').value;
+      const date = $('doctorDate').value || TODAY;
+      const items = await fetchAppointments(date);
+      const doctorItems = items.filter((item) => String(item.doctor_id) === String(doctorId));
+      const doctor = doctors.find((item) => String(item.id) === String(doctorId));
+      $('doctorSubtitle').textContent = `${doctor?.specialty || 'Clinic'} • ${formatDate(date)}`;
+      $('doctorSchedule').innerHTML = doctorItems.length ? doctorItems.map((item) => `
+        <div class="appointment-row">
+          <span class="time">${formatTime(item.time_slot)}</span>
+          <div class="patient-name">${escapeHtml(item.patient_name)}</div>
+          <div class="phone-field"><div class="phone">${escapeHtml(item.patient_phone)}</div></div>
+          <span class="status ${item.status}">${String(item.status).replace('_', '-')}</span>
+          <div class="actions">
+            ${item.status === 'booked' ? `
+              <button class="action-btn complete" onclick="updateStatus('${item.id}', 'completed')">Completed</button>
+              <button class="action-btn no-show" onclick="updateStatus('${item.id}', 'no_show')">No-Show</button>
+              <button class="action-btn cancel" onclick="updateStatus('${item.id}', 'cancelled')">Cancel</button>` : '<span style="color:#9aa4a0;font-size:13px">Updated</span>'}
+          </div>
+        </div>`).join('') : '<div class="empty">No appointments scheduled.</div>';
+    }
+
+    async function renderAdminSchedule() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return;
+
+      const date = $('adminDate').value || TODAY;
+      const items = await fetchAppointments(date);
+      $('adminSchedule').innerHTML = items.length ? items.map((item) => `
+        <div class="admin-row">
+          <span class="time">${formatTime(item.time_slot)}</span>
+          <div><div class="patient-name">${escapeHtml(item.patient_name)}</div><div class="phone phone-cell">${escapeHtml(item.patient_phone)}</div></div>
+          <span>${escapeHtml(item.doctors?.name || doctorName(item.doctor_id))}</span>
+          <span class="status ${item.status}">${String(item.status).replace('_', '-')}</span>
+          <div class="actions"><button class="action-btn cancel" onclick="updateStatus('${item.id}', 'cancelled')">Cancel</button></div>
+        </div>`).join('') : '<div class="empty">No appointments scheduled.</div>';
+    }
+
+    async function updateStatus(id, status) {
+      const { error } = await supabaseClient.from('appointments').update({ status }).eq('id', id);
+      if (error) return toast(error.message);
+      await renderDoctorSchedule();
+      await renderAdminSchedule();
+      await renderSlots();
+      await renderWalkTimes();
+      toast(`Appointment marked ${status.replace('_', ' ')}`);
+    }
+
+    async function renderWalkTimes() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (!session) return;
+
+      const doctorId = $('walkDoctor').value;
+      const date = $('adminDate').value || TODAY;
+      const items = await fetchAppointments(date);
+      const busy = new Set(items.filter((item) => String(item.doctor_id) === String(doctorId)).map((item) => String(item.time_slot).slice(0, 5)));
+      $('walkTime').innerHTML = getSlots().map((time) =>
+        `<option value="${time}" ${busy.has(time) ? 'disabled' : ''}>${formatTime(time)}</option>`
+      ).join('');
+    }
+
+    async function syncAuth() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const signedIn = Boolean(session);
+      $('doctorAuth').style.display = signedIn ? 'none' : 'block';
+      $('adminAuth').style.display = signedIn ? 'none' : 'block';
+      $('doctorProtected').style.display = signedIn ? 'block' : 'none';
+      $('adminProtected').style.display = signedIn ? 'block' : 'none';
+      if (signedIn) {
+        const profile = doctors.find((doctor) => String(doctor.user_id) === String(session.user.id));
+        if (profile) $('doctorSelect').value = profile.id;
+        await renderDoctorSchedule();
+        await renderAdminSchedule();
+      }
+    }
+
+    function setupLogin(formId, emailId, passwordId) {
+      $(formId).addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const { error } = await supabaseClient.auth.signInWithPassword({ email: $(emailId).value.trim(), password: $(passwordId).value.trim() });
+        toast(error ? error.message : 'Signed in successfully');
+      });
+    }
+
+    $('slotGrid').addEventListener('click', (event) => {
+      const slot = event.target.closest('.slot');
+      if (!slot || slot.disabled) return;
+      document.querySelectorAll('.slot').forEach((node) => node.classList.remove('selected'));
+      slot.classList.add('selected');
+      selectedSlot = slot.dataset.time;
+      updateSummary();
+    });
+
+    $('bookingDoctor').addEventListener('change', renderSlots);
+    $('bookingDate').addEventListener('change', renderSlots);
+    $('patientName').addEventListener('input', updateSummary);
+    $('patientPhone').addEventListener('input', updateSummary);
+
+    $('bookBtn').addEventListener('click', async () => {
+      const { error } = await supabaseClient.from('appointments').insert({
+        doctor_id: $('bookingDoctor').value,
+        appt_date: $('bookingDate').value,
+        time_slot: selectedSlot,
+        patient_name: $('patientName').value.trim(),
+        patient_phone: $('patientPhone').value.trim(),
+        status: 'booked',
+        type: 'online'
+      });
+      if (error) {
+        toast(error.code === '23505' ? 'That slot was just booked. Please choose another.' : error.message);
+        await renderSlots();
+        return;
+      }
+      $('patientName').value = '';
+      $('patientPhone').value = '';
+      toast('Appointment booked successfully');
+      await renderSlots();
+    });
+
+    $('walkInBtn').addEventListener('click', async () => {
+      const name = $('walkName').value.trim();
+      const phone = $('walkPhone').value.trim();
+      if (!name || !phone) return toast('Enter a name and phone number');
+      const { error } = await supabaseClient.from('appointments').insert({
+        doctor_id: $('walkDoctor').value,
+        appt_date: $('adminDate').value || TODAY,
+        time_slot: $('walkTime').value,
+        patient_name: name,
+        patient_phone: phone,
+        status: 'booked',
+        type: 'walk_in'
+      });
+      if (error) return toast(error.code === '23505' ? 'That slot is already booked.' : error.message);
+      $('walkName').value = '';
+      $('walkPhone').value = '';
+      toast('Walk-in appointment added');
+      await renderAdminSchedule();
+      await renderDoctorSchedule();
+      await renderWalkTimes();
+    });
+
+    document.querySelectorAll('.nav button').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.nav button').forEach((node) => node.classList.remove('active'));
+        document.querySelectorAll('.view').forEach((node) => node.classList.remove('active'));
+        button.classList.add('active');
+        $(button.dataset.view).classList.add('active');
+      });
+    });
+
+    $('doctorSelect').addEventListener('change', renderDoctorSchedule);
+    $('doctorDate').addEventListener('change', renderDoctorSchedule);
+    $('adminDate').addEventListener('change', () => { renderAdminSchedule(); renderWalkTimes(); });
+    $('walkDoctor').addEventListener('change', renderWalkTimes);
+    $('doctorSignOut').addEventListener('click', async () => { await supabaseClient.auth.signOut(); toast('Signed out'); });
+    $('adminSignOut').addEventListener('click', async () => { await supabaseClient.auth.signOut(); toast('Signed out'); });
+
+    setupLogin('doctorLogin', 'doctorEmail', 'doctorPassword');
+    setupLogin('adminLogin', 'adminEmail', 'adminPassword');
+    supabaseClient.auth.onAuthStateChange(syncAuth);
+
+    async function initialize() {
+      $('bookingDate').value = TODAY;
+      $('bookingDate').min = TODAY;
+      $('doctorDate').value = TODAY;
+      $('adminDate').value = TODAY;
+      await loadDoctors();
+      await renderSlots();
+      await syncAuth();
+    }
+
+    initialize();
+  </script>
+</body>
+</html>
